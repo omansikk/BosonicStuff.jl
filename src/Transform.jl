@@ -56,7 +56,7 @@ function transform(basis::Basis; periodic = false)
                 c *= number_of_multiset_permutations(js)
                 for output in multiset_permutations(ks, basis.N)
                     Tij = c
-                    for l in 1:N
+                    for l in 1:basis.N
                         Tij *= sin(pi * js[l] * output[l] * Lp1)
                     end
 
@@ -75,7 +75,7 @@ function transform(basis::Basis; periodic = false)
                 c *= number_of_multiset_permutations(js)
                 for output in multiset_permutations(ks, N)
                     Tij = c
-                    for l in 1:N
+                    for l in 1:basis.N
                         Tij *= exp(-2 * im * pi * js[l] * output[l] * Lp1)
                     end
 
