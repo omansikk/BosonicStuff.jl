@@ -43,15 +43,15 @@ Set the timing parameters automatically depending on which ones haven't manually
 function set_timing_parameters(saves, steps, dt, end_time)
     save = 0
     if steps == 0 && dt == 0.
-        steps = saves
+        steps = (saves - 1)
         save = 1
         dt = end_time / steps
     elseif steps != 0 && dt == 0.
         dt = end_time / steps
-        save = Int64(round(steps / saves))
+        save = Int64(round(steps / (saves - 1)))
     elseif dt != 0. && steps == 0
         steps = Int64(round(end_time / dt))
-        save = Int64(round(steps / saves))
+        save = Int64(round(steps / (saves - 1)))
         if steps * dt != end_time
             end_time = steps * dt
             println("\nWarning: end_time is not an integer multiple of dt. Automatically modified to end_time = " * string(end_time))
