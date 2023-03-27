@@ -43,15 +43,15 @@ Set the timing parameters automatically depending on which ones haven't manually
 function set_timing_parameters(saves, steps, dt, end_time)
     save = 0
     if steps == 0 && dt == 0.
-        steps = (saves - 1)
+        steps = saves
         save = 1
         dt = end_time / steps
     elseif steps != 0 && dt == 0.
         dt = end_time / steps
-        save = Int64(round(steps / (saves - 1)))
+        save = Int64(round(steps / saves))
     elseif dt != 0. && steps == 0
         steps = Int64(round(end_time / dt))
-        save = Int64(round(steps / (saves - 1)))
+        save = Int64(floor(steps / saves))
         if steps * dt != end_time
             end_time = steps * dt
             println("\nWarning: end_time is not an integer multiple of dt. Automatically modified to end_time = " * string(end_time))
@@ -113,7 +113,7 @@ function init_output_array(output_functions::Vector{Function}, initial_state::Ve
     output_array::Vector{Vector} = []
     for i in 1:length(output_functions)
         output = output_functions[i](initial_state)
-        push!(output_array, zeros(typeof(output), saves))
+        push!(output_array, zeros(typeof(output), saves + 1))
         output_array[end][1] = output
     end
 
@@ -174,13 +174,13 @@ end
 function unitary_trajectory(hamiltonian::SparseMatrixCSC, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, work_arrays::Work_arrays, steps::Int64, save::Int64, dt::Float64)
     k = 2
     state::Vector{ComplexF64} = copy(initial_state)
-    for i in 2:steps
+    for i in 1:steps
         propagate!(hamiltonian, state, dt, work_arrays)
         if i % save == 0
             for j in 1:length(output_functions)
                 output_array[j][k] = output_functions[j](state)
             end
-
+            
             k += 1
         end
     end
@@ -194,7 +194,7 @@ end
 function unitary_trajectory(exph::Matrix, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, steps::Int64, saves::Int64)
     k = 2
     state::Vector{ComplexF64} = copy(initial_state)
-    for i in 2:steps
+    for i in 1:steps
         state .= exph * state
         if i % saves == 0
             for j in 1:length(output_functions)
@@ -214,13 +214,14 @@ end
 function nonunitary_trajectory(hamiltonian::SparseMatrixCSC, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, work_arrays::Work_arrays, cs::Vector, steps::Int64, save::Int64, L::Int64, N::Int64, dt::Float64)
     k = 2
     state::Vector{ComplexF64} = copy(initial_state)
-    for i in 2:steps
+    for i in 1:steps
         propagate!(hamiltonian, state, dt, work_arrays)
         if real(state' * state) < rand()
             jump!(L, N, state, cs)
-#~             if state[1] != 0.
-#~                 break
-#~             end
+            if real((state' * cs') * (cs * state)) == 0. # out of bosons
+                break
+            end
+            
             krylov_dimension = set_krylov_dimension(hamiltonian, state, dt)
             work_arrays = init_work_arrays(length(initial_state), krylov_dimension)
         end
@@ -244,13 +245,13 @@ end
 function nonunitary_trajectory(exph::Matrix, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, cs::Vector, steps::Int64, save::Int64, L::Int64, N::Int64)
     k = 2
     state::Vector{ComplexF64} = copy(initial_state)
-    for i in 2:steps
+    for i in 1:steps
         state .= exph * state
         if real(state' * state) < rand()
             jump!(L, N, state, cs)
-#~             if state[1] != 0.
-#~                 break
-#~             end
+            if real((state' * cs') * (cs * state)) == 0. # out of bosons
+                break
+            end
         end
 
         normalize!(state)
@@ -273,7 +274,7 @@ function nonunitary_trajectory(hamiltonian::SparseMatrixCSC, initial_state::Vect
     k = 2
     state::Vector{ComplexF64} = copy(initial_state)
     test = copy(state)
-    for i in 2:steps
+    for i in 1:steps
         propagate!(hamiltonian, state, dt, work_arrays)
         normalize!(state)
         test .= dissipator .* state
@@ -311,7 +312,7 @@ function nonunitary_trajectory(exph::Matrix, initial_state::Vector{ComplexF64}, 
     k = 2
     state::Vector{ComplexF64} = copy(initial_state)
     test = copy(state)
-    for i in 2:steps
+    for i in 1:steps
         state .= exph * state
         normalize!(state)
         test .= dissipator .* state
@@ -783,7 +784,7 @@ If the Hamiltonian `hamiltonian` is a `SparseMatrixCSC`, the trajectories are ru
 
 The types of the dissipation and dephasing rates γ, κ can be `Float64` for uniform rates, `Vector{Float64}` for constant disorder patterns, or `Tuple{Float64, Float64}`. If given as tuples, the first value is the mean rate, and the second is the half-width of a uniform distribution.
 
-The parameters `steps`, `dt`, and `krylov_dimension`, if relevant, are determined automatically based on `saves` and `end_time` if not manually set.
+The parameters `steps`, `dt`, and `krylov_dimension`, if relevant, are determined automatically based on `saves` and `end_time` if not manually set. Actually returns output vectors of length `saves` + 1, where the +1 is the initial state. 
 """
 function run_trajectories(basis::Basis, hamiltonian, initial_state::Vector, output_functions::Vector{Function}, end_time::Float64; κ = 0, γ = 0, disorder = nothing, saves::Int64 = 1000, steps::Int64 = 0, dt::Float64 = 0., trajectories::Int64 = 1, krylov_dimension::Int64 = 0)
     output_array = init_output_array(output_functions, initial_state, saves)
