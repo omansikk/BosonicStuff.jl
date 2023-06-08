@@ -2,7 +2,7 @@ module BosonicStuff
     include.(["Basis.jl", "Operators.jl", "Trajectories.jl", "Miscellaneous_quantities.jl", "Transform.jl"])
     
     # from Basis.jl
-    export Basis_constant_N, Basis_global_max_N, Basis_local_max_N
+    export Basis_constant_N, Basis_global_max_N, Basis_local_max_N, Basis
     export dimension, length, find_vector, find_index, product_state, print_state
     
     # from Operators.jl
