@@ -5,6 +5,6 @@ This is a collection of most of the code used in the following papers:
 
 [2](https://link.aps.org/doi/10.1103/PRXQuantum.3.040314) O. Mansikkamäki et al., Beyond Hard-Core Bosons in Transmon Arrays, PRX Quantum 3, 040314 (2022).
 
-[3](http://arxiv.org/abs/2301.07025) O. Busel et al., Dissipation and Dephasing of Interacting Photons in Transmon Arrays, arXiv:2301.07025
+[3](https://link.aps.org/doi/10.1103/PhysRevResearch.5.023121) O. Busel et al., Dissipation and Dephasing of Interacting Photons in Transmon Arrays, Phys. Rev. Res. 5, 023121 (2023)
 
 See Examples.ipynb to see how it works, and how to use it to reproduce some of the results of the above papers.
