@@ -332,6 +332,6 @@ Construct a sparse matrix representation of on-site anharmonicity disorder
 \\hat{H}_{\\delta U} = -\\frac{1}{2}\\sum_\\ell \\delta U_\\ell \\hat{n}_\\ell (\\hat{n}_\\ell - 1).
 ``
 """
-function anharmonicity_disorder(basis::Basis, pattern = 2. .* rand(basis.L) .- 1)
+function anharmonicity_disorder(basis::Basis; pattern = 2. .* rand(basis.L) .- 1)
     return operator(basis, fock -> (fock, -0.5 * sum(pattern .* (fock.^2 .- fock))))
 end
