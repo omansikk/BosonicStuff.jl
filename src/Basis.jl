@@ -273,18 +273,16 @@ function product_state(basis::Basis, fock::Tuple{Int64, Int64})
 end
 
 function product_state(basis::Basis, fock::Vector{Tuple{Int64, Int64}})
-    state = zeros(ComplexF64, lenght(basis))
+    state = zeros(ComplexF64, length(basis))
     vector = zeros(Int64, basis.L)
     for i in 1:length(fock)
         vector[fock[i][2]] = fock[i][1]
     end
 
-    state[find_state(basis, vector)] = 1.
+    state[find_index(basis, vector)] = 1.
 
     return state
 end
-
-
 
 """
 print_State(basis::Basis, state; cutoff = 0.99)
