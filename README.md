@@ -7,4 +7,4 @@ This is a collection of most of the code used in the following papers:
 
 [3](https://link.aps.org/doi/10.1103/PhysRevResearch.5.023121) O. Busel et al., Dissipation and Dephasing of Interacting Photons in Transmon Arrays, Phys. Rev. Res. 5, 023121 (2023)
 
-See Examples.ipynb to see how it works, and how to use it to reproduce some of the results of the above papers.
+See Examples.ipynb to see how it works, and how to use it to reproduce some of the results of the above papers. Note that the package is quite quickly cobbled together from three separate application specific codes, and might be a bit buggy.
