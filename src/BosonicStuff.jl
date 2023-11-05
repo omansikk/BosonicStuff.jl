@@ -2,13 +2,13 @@ module BosonicStuff
     include.(["Basis.jl", "Operators.jl", "Trajectories.jl", "Miscellaneous_quantities.jl", "Transform.jl"])
     
     # from Basis.jl
-    export Basis_constant_N, Basis_global_max_N, Basis_local_max_N, Basis
+    export Basis_constant_N, Basis_global_max_N, Basis_local_max_N, Basis_composite, Basis
     export dimension, length, find_vector, find_index, product_state, print_state
     
     # from Operators.jl
     export operator, diagonal_operator
     export number, numbers, annihilation, annihilations
-    export ABH_Hamiltonian
+    export ABH_Hamiltonian, hopping, anharmonicity
     export number_disorder, anharmonicity_disorder
     
     # from Trajectories.jl
