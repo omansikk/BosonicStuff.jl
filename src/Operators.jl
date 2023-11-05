@@ -152,14 +152,14 @@ end
 # should be easy to cut the below to about a third of the length
 
 """
-`hops(basis::Basis, fock; periodic = 0)`
+`hops_2D(basis::Basis, fock; periodic = 0)`
 
 Return the basis vectors in `basis` coupled to `fock` and the corresponding matrix elements. That, is the action of the hopping part
 ``
 \\hat{H}_J = \\sum_\\ell (\\hat{a}^\\dagger_\\ell \\hat{a}_{\\ell + 1} + \\text{H.c.})
 ``
 
-of the 2D rectangulat ABH Hamiltonian; see `ABH_Hamiltonian_2D`.
+of the 2D rectangular ABH Hamiltonian; see `ABH_Hamiltonian_2D`.
 
 The variable `periodic` determines how many of the edges of the array are periodic.
 """
@@ -277,7 +277,27 @@ function hops_2D(basis::Basis, fock, L1, L2; periodic = 0)
 end
 
 
+function hopping(basis::Basis; periodic = false, J = 1, dims::Tuple{Int64, Int64} = (0, 0))
+    if dims == (0, 0)
+        HJ = operator(basis, fock -> hops(basis, fock, periodic = periodic), add_adjoint = true) .* J
+    else
+        if periodic == false
+            HJ = operator(basis, fock -> hops_2D(basis, fock, dims[1], dims[2], periodic = 0), add_adjoint = true) .* J
+        else
+            HJ = operator(basis, fock -> hops_2D(basis, fock, dims[1], dims[2], periodic = periodic), add_adjoint = true) .* J
+        end
+    end
+    
+    return HJ
+end
+
+
 u(fock) = -0.5 * sum(fock.^2 .- fock)
+
+function anharmonicity(basis; U = 1)
+    return operator(basis, fock -> (fock, u(fock))) .* U
+end
+
 
 """
 `ABH_Hamiltonian(basis::Basis; periodic = false, split = true, J = 1, U = 1, dims = (0, 0))`
@@ -292,16 +312,8 @@ The interaction and hopping terms are returned separately by default (`split = t
 For a rectangular 2D array, set `dims = (L1, L2)`, where `L1` and `L2` are the lengths of the edges. Set `periodic` to 1 for a periodic array in one direction, and 2 for both directions.
 """
 function ABH_Hamiltonian(basis::Basis; periodic = false, split = true, J = 1, U = 1, dims::Tuple{Int64, Int64} = (0, 0))
-    HU = operator(basis, fock -> (fock, u(fock))) .* U
-    if dims == (0, 0)
-        HJ = operator(basis, fock -> hops(basis, fock, periodic = periodic), add_adjoint = true) .* J
-    else
-        if periodic == false
-            HJ = operator(basis, fock -> hops_2D(basis, fock, dims[1], dims[2], periodic = 0), add_adjoint = true) .* J
-        else
-            HJ = operator(basis, fock -> hops_2D(basis, fock, dims[1], dims[2], periodic = periodic), add_adjoint = true) .* J
-        end
-    end
+    HU = anharmonicity(basis, U = U)
+    HJ = hopping(basis::Basis; periodic = periodic, J = 1, dims = dims)
 
     if split == true
         return HU, HJ
@@ -309,6 +321,7 @@ function ABH_Hamiltonian(basis::Basis; periodic = false, split = true, J = 1, U 
         return HU .+ HJ
     end
 end
+
 
 
 """
