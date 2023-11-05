@@ -28,7 +28,16 @@ mutable struct Basis_local_max_N <: Basis
 end
 
 
-# definitions of functions making the bases sort of abstract vectors, and allowing iteration over the basis
+mutable struct Basis_composite <: Basis
+    bases::Vector{Basis}
+    L::Int64
+    N::Int64
+end
+
+
+Basis_composite(v::Vector{Basis}) = Basis_composite(v, sum([v[i].L for i in 1:length(v)]), max[v[i].N for i in 1:length(v)])
+
+# definitions the Basis objects as sort of abstract vectors, and allowing iteration
 
 """
 `dimension(basis::Basis)`
@@ -38,6 +47,7 @@ Compute the dimension, i.e., the number of basis vectors in `basis`.
 dimension(basis::Basis_constant_N) = dimension_constant_N(basis.L, basis.N)
 dimension(basis::Basis_global_max_N) = dimension_global_max_N(basis.L, basis.N)
 dimension(basis::Basis_local_max_N) = dimension_local_max_N(basis.L, basis.N)
+
 
 """
 `length(basis::Basis) = dimension(basis::Basis)`
@@ -54,7 +64,6 @@ Find the Fock vector corresponding to `index`.
 find_vector(basis::Basis_constant_N, index) = find_vector_constant_N(basis.L, basis.N, index)
 find_vector(basis::Basis_global_max_N, index) = find_vector_global_max_N(basis.L, basis.N, index)
 find_vector(basis::Basis_local_max_N, index) = find_vector_local_max_N(basis.L, basis.N, index)
-
 
 """
 `getindex(basis::Basis, index) = find_vector(basis::Basis, index)`
@@ -241,6 +250,54 @@ function find_vector_local_max_N(L, N, index)
 end
 
 
+#functions for composite bases
+
+function dimension(basis::Basis_composite)
+    dim = 1
+    for b in basis.bases
+        dim *= dimension(b)
+    end
+    
+    return dim
+end
+
+
+function find_index(basis::Basis_composite, fock)
+    ls = zeros(Int64, length(basis.bases) + 1)
+    ls[1] = 1
+    for i in 2:length(ls)
+        ls[i] = ls[i - 1] + basis.bases[i - 1].L
+    end
+    
+    dims = dimension.(basis.bases)
+    index = 1
+    for i in 1:length(basis.bases)
+        multiplier = i < length(basis) ? prod(dims[i + 1:end]) : 1
+        index += (find_index(basis.bases[i], fock[ls[i]:ls[i + 1] - 1]) - 1) * multiplier
+    end
+
+    return index
+end
+    
+
+function find_vector(basis::Basis_composite, index)
+    Ls = [basis.bases[i].L for i in 1:length(basis.bases)]
+    focks = zeros.(Int64, Ls)
+    dims = dimension.(basis.bases)
+    for i in 1:length(basis.bases) - 1
+        j = 1
+        while index > prod(dims[i + 1:end])
+            j += 1; index -= prod(dims[i + 1:end])
+        end
+        
+        focks[i] .= find_vector(basis.bases[i], j)
+    end
+
+    focks[end] .= find_vector(basis.bases[end], index)
+    return reduce(vcat, focks)
+end
+
+
 # functions for initialising product states
 
 """
@@ -312,3 +369,6 @@ function print_state(basis::Basis, state; cutoff = 0.99)
 
     return nothing
 end
+
+
+
