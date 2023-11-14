@@ -35,7 +35,7 @@ mutable struct Basis_composite <: Basis
 end
 
 
-Basis_composite(v::Vector{Basis}) = Basis_composite(v, sum([v[i].L for i in 1:length(v)]), max[v[i].N for i in 1:length(v)])
+Basis_composite(v::Vector{Basis}) = Basis_composite(v, sum([v[i].L for i in 1:length(v)]), maximum([v[i].N for i in 1:length(v)]))
 
 # definitions the Basis objects as sort of abstract vectors, and allowing iteration
 
