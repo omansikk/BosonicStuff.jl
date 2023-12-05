@@ -1,4 +1,4 @@
-# BosonicStuff
+LatticeModels
 This is a collection of most of the code used in the following papers:
 
 [1](https://link.aps.org/doi/10.1103/PhysRevB.103.L220202) O. Mansikkamäki, S. Laine, and M. Silveri, Phases of the disordered Bose-Hubbard model with attractive interactions, Phys. Rev. B 103, L220202 (2021).
