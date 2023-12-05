@@ -1,4 +1,4 @@
-module BosonicStuff
+module LatticeModels
     include.(["Basis.jl", "Operators.jl", "Trajectories.jl", "Miscellaneous_quantities.jl", "Transform.jl"])
     
     # from Basis.jl
@@ -13,6 +13,9 @@ module BosonicStuff
     
     # from Trajectories.jl
     export run_trajectories
+    export init_work_arrays, set_timing_parameters, set_krylov_dimension, init_output_array
+    export unitary_trajectory, nonunitary_trajectory
+    export run_unitary_trajectories, run_nonunitary_trajectories
     
     # from Miscellaneous_quantities.jl
     export inverse_participation_ratio, entropy
