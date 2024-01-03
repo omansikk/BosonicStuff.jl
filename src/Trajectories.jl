@@ -104,7 +104,7 @@ end
 Initialise arrays to store outputs.
 """
 function init_output_array(output_functions::Vector{Function}, initial_state::Vector, saves::Int64)
-    output_array::Vector{Vector} = []
+    output_array::Vector{Vector{Number}} = []
     for i in 1:length(output_functions)
         output = output_functions[i](initial_state)
         push!(output_array, zeros(typeof(output), saves + 1))
@@ -164,18 +164,21 @@ function propagate!(hamiltonian::SparseMatrixCSC, state::Vector, dt::Float64, wo
 end
 
 
+function compute_outputs!(state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, k::Integer)
+    for j in 1:length(output_functions)
+        output_array[j][k] = output_functions[j](state)
+    end
+end
+
 # single unitary trajectory with Krylov
 
-function unitary_trajectory(hamiltonian::SparseMatrixCSC, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, work_arrays::Work_arrays, steps::Int64, save::Int64, dt::Float64)
+function unitary_trajectory(hamiltonian::SparseMatrixCSC, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, work_arrays::Work_arrays, steps::Int64, save::Int64, dt::Float64)
     k = 2
     state::Vector{ComplexF64} = copy(initial_state)
     for i in 1:steps
         propagate!(hamiltonian, state, dt, work_arrays)
         if i % save == 0
-            for j in 1:length(output_functions)
-                output_array[j][k] = output_functions[j](state)
-            end
-            
+            compute_outputs!(state, output_functions, output_array, k)
             k += 1
         end
     end
@@ -186,17 +189,14 @@ end
 
 # single unitary trajectory with Krylov for a time-dependent Hamiltonian
 
-function unitary_trajectory(hamiltonian::SparseMatrixCSC, time_dependence::Function, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, work_arrays::Work_arrays, steps::Int64, save::Int64, dt::Float64)
+function unitary_trajectory(hamiltonian::SparseMatrixCSC, time_dependence::Function, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, work_arrays::Work_arrays, steps::Int64, save::Int64, dt::Float64)
     k = 2; t = 0.
     state::Vector{ComplexF64} = copy(initial_state)
     for i in 1:steps
         propagate!(hamiltonian .+ time_dependence(t), state, dt, work_arrays)
         t += dt
         if i % save == 0
-            for j in 1:length(output_functions)
-                output_array[j][k] = output_functions[j](state)
-            end
-            
+            compute_outputs!(state, output_functions, output_array, k)
             k += 1
         end
     end
@@ -208,16 +208,13 @@ end
 
 # single unitary trajectory with full diagonalisation
 
-function unitary_trajectory(exph::Matrix, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, steps::Int64, saves::Int64)
+function unitary_trajectory(exph::Matrix, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, steps::Int64, saves::Int64)
     k = 2
     state::Vector{ComplexF64} = copy(initial_state)
     for i in 1:steps
         state .= exph * state
         if i % saves == 0
-            for j in 1:length(output_functions)
-                output_array[j][k] = output_functions[j](state)
-            end
-
+            compute_outputs!(state, output_functions, output_array, k)
             k += 1
         end
     end
@@ -228,19 +225,16 @@ end
 
 # single unitary trajectory with full diagonalisation for a time-dependent Hamiltonian
 
-function unitary_trajectory(H::Matrix, time_dependence::Function, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, steps::Int64, saves::Int64, dt::Float64)
+function unitary_trajectory(H::Matrix, time_dependence::Function, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, steps::Int64, saves::Int64, dt::Float64)
     k = 2; t = 0.
     exph = zeros(ComplexF64, size(H))
     state::Vector{ComplexF64} = copy(initial_state)
     for i in 1:steps
-        exph .= exp(-1.0im * dt .* Matrix(H .+ time_dependence(t)))
+        exph .= exp(-1.0im * dt .* (H .+ time_dependence(t)))
         state .= exph * state
         t += dt
         if i % saves == 0
-            for j in 1:length(output_functions)
-                output_array[j][k] = output_functions[j](state)
-            end
-
+            compute_outputs!(state, output_functions, output_array, k)
             k += 1
         end
     end
@@ -251,7 +245,7 @@ end
 
 # single non-unitary trajectory with dissipation or dephasing using the Krylov method
 
-function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, work_arrays::Work_arrays, cs::Vector, steps::Int64, save::Int64, L::Int64, N::Int64, dt::Float64)
+function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, work_arrays::Work_arrays, cs::Vector, steps::Int64, save::Int64, L::Int64, N::Int64, dt::Float64)
     k = 2
     state::Vector{ComplexF64} = copy(initial_state)
     for i in 1:steps
@@ -268,10 +262,7 @@ function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, initi
 
         normalize!(state)
         if i % save == 0
-            for j in 1:length(output_functions)
-                output_array[j][k] = output_functions[j](state)
-            end
-
+            compute_outputs!(state, output_functions, output_array, k)
             k += 1
         end
     end
@@ -282,11 +273,11 @@ end
 
 # single non-unitary trajectory with dissipation or dephasing and a time-dependent hamiltonian using the Krylov method
 
-function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, time_dependence::Function, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, work_arrays::Work_arrays, cs::Vector, steps::Int64, save::Int64, L::Int64, N::Int64, dt::Float64)
+function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, time_dependence::Function, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, work_arrays::Work_arrays, cs::Vector, steps::Int64, save::Int64, L::Int64, N::Int64, dt::Float64)
     k = 2; t = 0.
     state::Vector{ComplexF64} = copy(initial_state)
     for i in 1:steps
-        propagate!(hamiltonian .+ time_dependence(t + 0.5 * dt), state, dt, work_arrays)
+        propagate!(hamiltonian .+ time_dependence(t), state, dt, work_arrays)
         t += dt
         if real(state' * state) < rand()
             jump!(L, N, state, cs)
@@ -296,10 +287,7 @@ function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, time_
 
         normalize!(state)
         if i % save == 0
-            for j in 1:length(output_functions)
-                output_array[j][k] = output_functions[j](state)
-            end
-
+            compute_outputs!(state, output_functions, output_array, k)
             k += 1
         end
     end
@@ -310,8 +298,9 @@ end
 
 # single non-unitary trajectory with dissipation or dephasing with full diagonalisation
 
-function nonunitary_trajectory(basis::Basis, exph::Matrix, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, cs::Vector, steps::Int64, save::Int64, L::Int64, N::Int64)
+function nonunitary_trajectory(basis::Basis, exph::Matrix, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, cs::Vector, steps::Int64, save::Int64, L::Int64, N::Int64)
     k = 2
+    exph = zeros(ComplexF64, size(H))
     state::Vector{ComplexF64} = copy(initial_state)
     for i in 1:steps
         state .= exph * state
@@ -324,10 +313,7 @@ function nonunitary_trajectory(basis::Basis, exph::Matrix, initial_state::Vector
 
         normalize!(state)
         if i % save == 0
-            for j in 1:length(output_functions)
-                output_array[j][k] = output_functions[j](state)
-            end
-
+            compute_outputs!(state, output_functions, output_array, k)
             k += 1
         end
     end
@@ -336,9 +322,38 @@ function nonunitary_trajectory(basis::Basis, exph::Matrix, initial_state::Vector
 end
 
 
+# single non-unitary trajectory with dissipation or dephasing and a time-dependent Hamiltonian with full diagonalisation
+
+function nonunitary_trajectory(basis::Basis, H::Matrix, time_dependence::Function, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, cs::Vector, steps::Int64, save::Int64, L::Int64, N::Int64, dt::Float64)
+    k = 2; t = 0.
+    exph = zeros(ComplexF64, size(H))
+    state::Vector{ComplexF64} = copy(initial_state)
+    for i in 1:steps
+        exph .= exp(-1.0im * dt .* (H .+ time_dependence(t)))
+        state .= exph * state
+        t += dt
+        if real(state' * state) < rand()
+            jump!(L, N, state, cs)
+            if typeof(basis) != Basis_constant_N && state[1] == 1. # out of bosons
+                break
+            end
+        end
+
+        normalize!(state)
+        if i % save == 0
+            compute_outputs!(state, output_functions, output_array, k)
+            k += 1
+        end
+    end
+
+    return output_array
+end
+
+
+
 # single non-unitary trajectory with dissipation and dephasing using the Krylov method
 
-function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, work_arrays::Work_arrays, as::Vector, ns::Vector, dissipator::Vector, dephaser::Vector, steps::Int64, save::Int64, L::Int64, N::Int64, dt::Float64)
+function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, work_arrays::Work_arrays, as::Vector, ns::Vector, dissipator::Vector, dephaser::Vector, steps::Int64, save::Int64, L::Int64, N::Int64, dt::Float64)
     k = 2
     state::Vector{ComplexF64} = copy(initial_state)
     test = copy(state)
@@ -362,10 +377,7 @@ function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, initi
         end
 
         if i % save == 0
-            for j in 1:length(output_functions)
-                output_array[j][k] = output_functions[j](state)
-            end
-
+            compute_outputs!(state, output_functions, output_array, k)
             k += 1
         end
     end
@@ -376,12 +388,12 @@ end
 
 # single non-unitary trajectory with dissipation, dephasing, and a time-dependent hamiltonian using the Krylov method
 
-function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, time_dependence::Function, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, work_arrays::Work_arrays, as::Vector, ns::Vector, dissipator::Vector, dephaser::Vector, steps::Int64, save::Int64, L::Int64, N::Int64, dt::Float64)
+function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, time_dependence::Function, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, work_arrays::Work_arrays, as::Vector, ns::Vector, dissipator::Vector, dephaser::Vector, steps::Int64, save::Int64, L::Int64, N::Int64, dt::Float64)
     k = 2; t = 0.
     state::Vector{ComplexF64} = copy(initial_state)
     test = copy(state)
     for i in 1:steps
-        propagate!(hamiltonian .+ time_dependence(t + 0.5 * dt), state, dt, work_arrays)
+        propagate!(hamiltonian .+ time_dependence(t), state, dt, work_arrays)
         t += dt
         normalize!(state)
         test .= dissipator .* state
@@ -401,10 +413,7 @@ function nonunitary_trajectory(basis::Basis, hamiltonian::SparseMatrixCSC, time_
         end
 
         if i % save == 0
-            for j in 1:length(output_functions)
-                output_array[j][k] = output_functions[j](state)
-            end
-
+            compute_outputs!(state, output_functions, output_array, k)
             k += 1
         end
     end
@@ -415,7 +424,7 @@ end
 
 # single non-unitary trajectory with dissipation and dephasing with full diagonalisation
 
-function nonunitary_trajectory(basis::Basis, exph::Matrix, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector}, as::Vector, ns::Vector, dissipator::Vector, dephaser::Vector, steps::Int64, save::Int64, L::Int64, N::Int64)
+function nonunitary_trajectory(basis::Basis, exph::Matrix, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, as::Vector, ns::Vector, dissipator::Vector, dephaser::Vector, steps::Int64, save::Int64, L::Int64, N::Int64)
     k = 2
     state::Vector{ComplexF64} = copy(initial_state)
     test = copy(state)
@@ -436,10 +445,7 @@ function nonunitary_trajectory(basis::Basis, exph::Matrix, initial_state::Vector
         end
 
         if i % save == 0
-            for j in 1:length(output_functions)
-                output_array[j][k] = output_functions[j](state)
-            end
-
+            compute_outputs!(state, output_functions, output_array, k)
             k += 1
         end
     end
@@ -452,11 +458,14 @@ end
 
 function run_unitary_trajectories(basis::Basis, hamiltonian::SparseMatrixCSC, initial_state::Vector, output_functions::Vector{Function}, output_array::Vector, work_arrays::Work_arrays, save::Int64, steps::Int64, trajectories::Int64, dt::Float64; disorder = nothing, time_dependence = nothing)
     if disorder != nothing
-        output_array .= @distributed (.+) for i in 1:trajectories
-            H = hamiltonian .+ disorder()
-            if time_dependence != nothing
+        if time_dependence != nothing
+            output_array .= @distributed (.+) for i in 1:trajectories
+                H = hamiltonian .+ disorder()
                 unitary_trajectory(H, time_dependence, initial_state, output_functions, output_array, work_arrays, steps, save, dt)
-            else
+            end
+        else
+            output_array .= @distributed (.+) for i in 1:trajectories
+                H = hamiltonian .+ disorder()
                 unitary_trajectory(H, initial_state, output_functions, output_array, work_arrays, steps, save, dt)
             end
         end
@@ -474,6 +483,7 @@ function run_unitary_trajectories(basis::Basis, hamiltonian::SparseMatrixCSC, in
 
     return output_array
 end
+
 
 
 
@@ -598,7 +608,7 @@ end
 
 # non-unitary trajectories with a single fixed disorder pattern in dissipation or dephasing using the Krylov method
 
-function run_nonunitary_trajectories(basis::Basis, hamiltonian::SparseMatrixCSC, initial_state::Vector, output_functions::Vector{Function}, output_array::Vector, work_arrays::Work_arrays, κ::Vector{Float64}, cs::Vector, save::Int64, steps::Int64, trajectories::Int64, dt::Float64; disorder = nothing)
+function run_nonunitary_trajectories(basis::Basis, hamiltonian::SparseMatrixCSC, initial_state::Vector, output_functions::Vector{Function}, output_array::Vector, work_arrays::Work_arrays, κ::Vector{Float64}, cs::Vector, save::Int64, steps::Int64, trajectories::Int64, dt::Float64; disorder = nothing, time_dependence = nothing)
     H0::SparseMatrixCSC{ComplexF64, Int64} = hamiltonian
     for l in 1:basis.L
         H0 .+= -0.5im * κ[l] .* cs[l]' * cs[l]
@@ -609,14 +619,26 @@ function run_nonunitary_trajectories(basis::Basis, hamiltonian::SparseMatrixCSC,
     end
 
     if disorder != nothing
-        output_array .= @distributed (.+) for i in 1:trajectories
-            H = H0 .+ disorder()
-            nonunitary_trajectory(basis, H, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+        if time_dependence != nothing
+            output_array .= @distributed (.+) for i in 1:trajectories
+                H = H0 .+ disorder()
+                nonunitary_trajectory(basis, H, time_dependence, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+            end
+        else
+            output_array .= @distributed (.+) for i in 1:trajectories
+                H = H0 .+ disorder()
+                nonunitary_trajectory(basis, H, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+            end
         end
     else
-
-        output_array .= @distributed (.+) for i in 1:trajectories
-            nonunitary_trajectory(basis, hamiltonian, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+        if time_dependence != nothing
+            output_array .= @distributed (.+) for i in 1:trajectories
+                nonunitary_trajectory(basis, H0, time_dependence, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+            end
+        else
+            output_array .= @distributed (.+) for i in 1:trajectories
+                nonunitary_trajectory(basis, H0, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+            end
         end
     end
 
@@ -630,7 +652,7 @@ end
 
 # non-unitary trajectories with a single fixed disorder pattern in dissipation or dephasing with full diagonalisation
 
-function run_nonunitary_trajectories(basis::Basis, hamiltonian::Matrix, initial_state::Vector, output_functions::Vector{Function}, output_array::Vector, κ::Vector{Float64}, cs::Vector, save::Int64, steps::Int64, trajectories::Int64, dt::Float64; disorder = nothing)
+function run_nonunitary_trajectories(basis::Basis, hamiltonian::Matrix, initial_state::Vector, output_functions::Vector{Function}, output_array::Vector, κ::Vector{Float64}, cs::Vector, save::Int64, steps::Int64, trajectories::Int64, dt::Float64; disorder = nothing, time_dependence = nothing)
     H0::Matrix{ComplexF64} = hamiltonian
     for l in 1:basis.L
         H0 .+= -0.5im * κ[l] .* cs[l]' * cs[l]
@@ -640,14 +662,26 @@ function run_nonunitary_trajectories(basis::Basis, hamiltonian::Matrix, initial_
     end
 
     if disorder != nothing
-        output_array .= @distributed (.+) for i in 1:trajectories
-            exph = exp(-1.0im * dt .* (H0 .+ Matrix(disorder())))
-            nonunitary_trajectory(basis, exph, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N,)
+        if time_dependence != nothing
+            output_array .= @distributed (.+) for i in 1:trajectories
+                nonunitary_trajectory(basis, H0 .+ Matrix(disorder()), time_dependence, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N, dt)
+            end
+        else
+            output_array .= @distributed (.+) for i in 1:trajectories
+                exph = exp(-1.0im * dt .* (H0 .+ Matrix(disorder())))
+                nonunitary_trajectory(basis, exph, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N)
+            end
         end
     else
-        exph = exp(-1.0im * dt .* H0)
-        output_array .= @distributed (.+) for i in 1:trajectories
-            nonunitary_trajectory(basis, exph, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N)
+        if time_dependence != nothing
+            output_array .= @distributed (.+) for i in 1:trajectories
+                nonunitary_trajectory(basis, H0, time_dependence, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N, dt)
+            end
+        else
+            exph = exp(-1.0im * dt .* H0)
+            output_array .= @distributed (.+) for i in 1:trajectories
+                nonunitary_trajectory(basis, exph, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N)
+            end
         end
     end
 
@@ -661,20 +695,33 @@ end
 
 # non-unitary trajectories with constant dissipation or dephasing using the Krylov method
 
-function run_nonunitary_trajectories(basis::Basis, hamiltonian::SparseMatrixCSC, initial_state::Vector, output_functions::Vector{Function}, output_array::Vector, work_arrays::Work_arrays, κ::Float64, cs::Vector, save::Int64, steps::Int64, trajectories::Int64, dt::Float64; disorder = nothing)
+function run_nonunitary_trajectories(basis::Basis, hamiltonian::SparseMatrixCSC, initial_state::Vector, output_functions::Vector{Function}, output_array::Vector, work_arrays::Work_arrays, κ::Float64, cs::Vector, save::Int64, steps::Int64, trajectories::Int64, dt::Float64; disorder = nothing, time_dependence = nothing)
     H0::SparseMatrixCSC{ComplexF64, Int64} = hamiltonian
     for l in 1:basis.L
         H0 .+= -0.5im * κ .* cs[l]' * cs[l]
     end
 
     if disorder != nothing
-        output_array .= @distributed (.+) for i in 1:trajectories
-            H = H0 .+ disorder()
-            nonunitary_trajectory(basis, H, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+        if time_dependence != nothing
+            output_array .= @distributed (.+) for i in 1:trajectories
+                H = H0 .+ disorder()
+                nonunitary_trajectory(basis, H, time_dependence, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+            end
+        else
+            output_array .= @distributed (.+) for i in 1:trajectories
+                H = H0 .+ disorder()
+                nonunitary_trajectory(basis, H, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+            end
         end
     else
-        output_array .= @distributed (.+) for i in 1:trajectories
-            nonunitary_trajectory(basis, H0, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+        if time_dependence != nothing
+            output_array .= @distributed (.+) for i in 1:trajectories
+                nonunitary_trajectory(basis, H0, time_dependence, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+            end
+        else
+            output_array .= @distributed (.+) for i in 1:trajectories
+                nonunitary_trajectory(basis, H0, initial_state, output_functions, output_array, work_arrays, cs, steps, save, basis.L, basis.N, dt)
+            end
         end
     end
 
@@ -688,21 +735,33 @@ end
 
 # non-unitary trajectories with constant dissipation or dephasing with full diagonalisation
 
-function run_nonunitary_trajectories(basis::Basis, hamiltonian::Matrix, initial_state::Vector, output_functions::Vector{Function}, output_array::Vector, κ::Float64, cs::Vector, save::Int64, steps::Int64, trajectories::Int64, dt::Float64; disorder = nothing)
+function run_nonunitary_trajectories(basis::Basis, hamiltonian::Matrix, initial_state::Vector, output_functions::Vector{Function}, output_array::Vector, κ::Float64, cs::Vector, save::Int64, steps::Int64, trajectories::Int64, dt::Float64; disorder = nothing, time_dependence = nothing)
     H0::Matrix{ComplexF64} =  hamiltonian
     for l in 1:basis.L
         H0 .+= -0.5im * κ .* cs[l]' * cs[l]
     end
 
     if disorder != nothing
-        output_array .= @distributed (.+) for i in 1:trajectories
-            exph = exp(-1.0im * dt .* (H0 .+ Matrix(disorder())))
-            nonunitary_trajectory(basis, exph, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N)
+        if time_dependence != nothing
+            output_array .= @distributed (.+) for i in 1:trajectories
+                nonunitary_trajectory(basis, H0 .+ Matrix(disorder()), time_dependence, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N, dt)
+            end
+        else
+            output_array .= @distributed (.+) for i in 1:trajectories
+                exph = exp(-1.0im * dt .* (H0 .+ Matrix(disorder())))
+                nonunitary_trajectory(basis, exph, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N)
+            end
         end
     else
-        exph = exp(-1.0im * dt .* H0)
-        output_array .= @distributed (.+) for i in 1:trajectories
-            nonunitary_trajectory(basis, exph, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N)
+        if time_dependence != nothing
+            output_array .= @distributed (.+) for i in 1:trajectories
+                nonunitary_trajectory(basis, H0, time_dependence, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N, dt)
+            end
+        else
+            exph = exp(-1.0im * dt .* H0)
+            output_array .= @distributed (.+) for i in 1:trajectories
+                nonunitary_trajectory(basis, exph, initial_state, output_functions, output_array, cs, steps, save, basis.L, basis.N)
+            end
         end
     end
 
@@ -906,7 +965,7 @@ Output functions should be a list of functions that take the current state as an
 
 To include disorder in unitary parameters, define a function (passed as `disorder`) that takes no arguments and returns a sparse matrix representation of the disorder Hamiltonian.
 
-If the Hamiltonian `hamiltonian` is a `SparseMatrixCSC`, the trajectories are run with the Krylov method. If it is a dense `Matrix`, the trajectories are run via full diagonalisation.
+If  `hamiltonian` is a `SparseMatrixCSC`, the trajectories are run with the Krylov method. If it is a dense `Matrix`, the trajectories are run via full diagonalisation.
 
 The types of the dissipation and dephasing rates γ, κ can be `Float64` for uniform rates, `Vector{Float64}` for constant disorder patterns, or `Tuple{Float64, Float64}`. If given as tuples, the first value is the mean rate, and the second is the half-width of a uniform distribution.
 
@@ -928,12 +987,12 @@ function run_trajectories(basis::Basis, hamiltonian, initial_state::Vector, outp
         elseif γ == 0 && κ != 0
             cs = numbers(basis)
 
-            return run_nonunitary_trajectories(basis, hamiltonian, initial_state, output_functions, output_array, work_arrays, κ, cs, save, steps, trajectories, dt, disorder = disorder)
+            return run_nonunitary_trajectories(basis, hamiltonian, initial_state, output_functions, output_array, work_arrays, κ, cs, save, steps, trajectories, dt, disorder = disorder, time_dependence = time_dependence)
 
         elseif γ != 0 && κ == 0
             cs = annihilations(basis)
 
-            return run_nonunitary_trajectories(basis, hamiltonian, initial_state, output_functions, output_array, work_arrays, γ, cs, save, steps, trajectories, dt, disorder = disorder)
+            return run_nonunitary_trajectories(basis, hamiltonian, initial_state, output_functions, output_array, work_arrays, γ, cs, save, steps, trajectories, dt, disorder = disorder, time_dependence = time_dependence)
 
         elseif γ != 0 && κ != 0
 
@@ -949,12 +1008,12 @@ function run_trajectories(basis::Basis, hamiltonian, initial_state::Vector, outp
         elseif γ == 0 && κ != 0
             cs = numbers(basis)
 
-            return run_nonunitary_trajectories(basis, hamiltonian, initial_state, output_functions, output_array, κ, cs, save, steps, trajectories, dt, disorder = disorder)
+            return run_nonunitary_trajectories(basis, hamiltonian, initial_state, output_functions, output_array, κ, cs, save, steps, trajectories, dt, disorder = disorder, time_dependence = time_dependence)
 
         elseif γ != 0 && κ == 0
             cs = annihilations(basis)
 
-            return run_nonunitary_trajectories(basis, hamiltonian, initial_state, output_functions, output_array, γ, cs, save, steps, trajectories, dt, disorder = disorder)
+            return run_nonunitary_trajectories(basis, hamiltonian, initial_state, output_functions, output_array, γ, cs, save, steps, trajectories, dt, disorder = disorder, time_dependence = time_dependence)
 
 
         elseif γ != 0 && κ != 0
