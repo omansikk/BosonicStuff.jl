@@ -300,7 +300,6 @@ end
 
 function nonunitary_trajectory(basis::Basis, exph::Matrix, initial_state::Vector{ComplexF64}, output_functions::Vector{Function}, output_array::Vector{Vector{Number}}, cs::Vector, steps::Int64, save::Int64, L::Int64, N::Int64)
     k = 2
-    exph = zeros(ComplexF64, size(H))
     state::Vector{ComplexF64} = copy(initial_state)
     for i in 1:steps
         state .= exph * state
